@@ -27,6 +27,11 @@ def get_method_path_params(string):
 def generate_answer(method, url):
     if method != 'GET':
         return ('Method not allowed', 405)
+    url = url.split('//')
+    if len(url) > 1:
+        url = url[1]
+    else:
+        url = ''.join(url)
     if url.split('/', 1)[0] not in URLS:
         return('Not found', 404)
     return (('HTTP/1.1 200 OK\n\n', 200))
