@@ -1,31 +1,25 @@
 import socket
-import re
 
 
 def output_head(data):
-    dict_head = {}
-    ls = []
-    buf = ''
-    our_key = ''
+    dict_headers = {}
     for i in data:
-        if 'HTTP/1.1' in buf:
-            buf = ''
-        if i == '\n':
-            ls.append(buf)
-            buf = ''
+        i = i.split(':', 1)
+        if len(i) < 2:
+            continue
         else:
-            buf += i
+            dict_headers[i[0]] = i[1]
+    return dict_headers
 
-    for i in ls:
-        for j in range(len(i)):
-            if i[j] == ':':
-                new_key = our_key.replace('\r', '')
-                dict_head[new_key] = i[j+1:]
-                our_key = ''
-                break
-            else:
-                our_key += i[j]
-    return dict_head
+
+def get_method_path_params(string):
+    string = string.split(' ')
+    path_and_params = ''
+    if '?' not in string[1]:
+        return string[0], string[1], None
+    else:
+        path_and_params = string[1].split('?', 1)
+        return string[0], path_and_params[0], path_and_params[1]
 
 
 def start_server():
@@ -37,16 +31,16 @@ def start_server():
         while True:
             client_socket, adress = server.accept()
             data = client_socket.recv(1024).decode('utf-8')
-            headers = output_head(data)
             print(data)
-            print(adress)
-            data = data.split()
+            data = data.split('\n')
+            headers = output_head(data[1:])
+            method, path, params = get_method_path_params(data[0])
             headers_for_send = str(list(headers.keys())).encode('utf-8')
-            HDRS = 'HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n'
-            request_line = f'Method: {data[0]} Path: {data[1][1:]} Params: {data[2]}'.encode(
+            HDRS = 'HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n'
+            request_line = f'Method: {method} \r\nPath: {path} \r\nParams: {params} \r\nHeaders: {headers_for_send}'.encode(
                 'utf-8')
             client_socket.send(HDRS.encode('utf-8') +
-                               request_line + headers_for_send)
+                               request_line)
             client_socket.shutdown(socket.SHUT_WR)
     except KeyboardInterrupt:
         server.close()
