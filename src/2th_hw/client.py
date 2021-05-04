@@ -1,7 +1,6 @@
 import socket
 import ssl
 import json
-import ast
 
 
 def get_update_data():
@@ -19,7 +18,7 @@ def get_update_data():
         else:
             break
     data = data.split('\r\n\r\n')
-    data = ast.literal_eval(data[1])
+    data = json.loads(data[1])
     with open("data_currency.json", "w") as file:
         json.dump(data, file, indent=2)
 
