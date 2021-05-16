@@ -82,6 +82,7 @@ def main():
     get_rate_for_current_data(conn, curs)
     name, data, rate = output_current_rate(curs)
     print(f'Курс {name} на дату {data} составляет {rate} BYN')
+    curs.close()
     conn.close()
 
 
