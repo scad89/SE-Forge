@@ -1,29 +1,26 @@
+from contextlib import contextmanager, closing
 import requests
 import json
 from datetime import datetime
 import sqlite3
-from sqlite3 import Error
+import contextlib
+
+connect = sqlite3.connect('currencies.db')
 
 
+@contextmanager
 def connect_to_database():
-    try:
-        connect_sqlite = sqlite3.connect('currencies.db')
-        print('Connection to SQLite DB successful')
-    except connect_sqlite.DatabaseError:
-        print('SQLite DB connection error')
-    else:
+    with contextlib.closing(connect.cursor()) as cursor:
         try:
-            cursor = connect_sqlite.cursor()
-        except (connect_sqlite.IntegrityError, connect_sqlite.ProgrammingError, connect_sqlite.OperationalError) as e:
-            connect_sqlite.rollback()
-            print('Error: ', e.args)
-    finally:
-        if connect_sqlite:
-            return connect_sqlite, cursor
+            yield cursor
+        except connect.DatabaseError:
+            connect.rollback()
+        else:
+            connect.commit()
 
 
-def create_tables(connect, cursor):
-    try:
+def create_tables():
+    with connect_to_database() as cursor:
         cursor.execute('PRAGMA foreign_keys=ON')
         cursor.execute("""CREATE TABLE currencies
                       (id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,31 +35,23 @@ def create_tables(connect, cursor):
                         currency_id INTEGER NOT NULL,
                         FOREIGN KEY (currency_id) REFERENCES currencies(id))
                         """)
-    except Error:
-        print(Error)
-    finally:
-        connect.commit()
 
 
-def inserting_to_currencies(connect, curs):
-    try:
+def inserting_to_currencies():
+    with connect_to_database() as cursor:
         result_from_parsing = get_data()
         for i in result_from_parsing:
-            curs.execute(
+            cursor.execute(
                 "INSERT INTO currencies(name, nbrb_id) VALUES (?, ?)", (i['Cur_Name'], i['Cur_ID']))
-    finally:
-        connect.commit()
 
 
-def inserting_to_rates_for_curent_date(connect, curs):
-    try:
-        list_id_from_currencies = return_id_currencies(curs)
+def inserting_to_rates_for_curent_date():
+    with connect_to_database() as cursor:
+        list_id_from_currencies = return_id_currencies()
         result_from_parsing = get_data()
         for i in result_from_parsing:
-            curs.execute(
+            cursor.execute(
                 "INSERT INTO rates(unit_cur, date, rate, currency_id) VALUES (?, ?, ?, ?)", (i['Cur_Scale'], (i['Date'].split('T')[0]), i['Cur_OfficialRate'], list_id_from_currencies[result_from_parsing.index(i)][0]))
-    finally:
-        connect.commit()
 
 
 def get_data():
@@ -74,61 +63,63 @@ def get_data():
     return parsing_data
 
 
-def return_id_currencies(curs):
-    curs.execute(
-        'SELECT id, name FROM currencies')
-    list_id = curs.fetchall()
-    return list_id
+def return_id_currencies():
+    with connect_to_database() as cursor:
+        cursor.execute(
+            'SELECT id, name FROM currencies')
+        list_id = cursor.fetchall()
+        return list_id
 
 
-def output_currencies(curs):
-    curs.execute(
-        'SELECT name FROM currencies')
-    all_currencies = curs.fetchall()
-    return all_currencies
+def output_currencies():
+    with connect_to_database() as cursor:
+        cursor.execute(
+            'SELECT name FROM currencies')
+        all_currencies = cursor.fetchall()
+        return all_currencies
 
 
-def get_max_rate_into_data(curs):
-    curs.execute(
-        'SELECT unit_cur, date, rate FROM rates WHERE ID = (SELECT MAX(ID) FROM rates)')
-    last_data_from_rates = curs.fetchall()
-    return last_data_from_rates[0][0], last_data_from_rates[0][1], last_data_from_rates[0][2]
+def get_max_rate_into_data():
+    with connect_to_database() as cursor:
+        cursor.execute(
+            'SELECT unit_cur, date, rate FROM rates WHERE ID = (SELECT MAX(ID) FROM rates)')
+        last_data_from_rates = cursor.fetchall()
+        return last_data_from_rates[0][0], last_data_from_rates[0][1], last_data_from_rates[0][2]
 
 
-def find_rate_cur(curs, curval):
-    curs.execute(
-        "SELECT unit_cur, date, rate FROM rates WHERE (date = ?) and (id = ?)", (str(datetime.now().date()), curval))
-    data_from_rates = curs.fetchall()
-    unit, date, rate = check_return_sql_request(curs, data_from_rates)
-    return unit, date, rate
+def find_rate_cur(curval):
+    with connect_to_database() as cursor:
+        cursor.execute(
+            "SELECT unit_cur, date, rate FROM rates WHERE (date = ?) and (id = ?)", (str(datetime.now().date()), curval))
+        data_from_rates = cursor.fetchall()
+        unit, date, rate = check_return_sql_request(data_from_rates)
+        return unit, date, rate
 
 
-def check_return_sql_request(curs, database_list):
+def check_return_sql_request(database_list):
     if database_list:
         return database_list[0][0], database_list[0][1], database_list[0][2]
     else:
-        unit, date, rate = get_max_rate_into_data(curs)
+        unit, date, rate = get_max_rate_into_data()
         return unit, date, rate
 
 
 def main():
-    conn, curs = connect_to_database()
     questions_about_new_database = input(
         'Create tables of currencies and rates???(Y/N): ')
     if questions_about_new_database.lower() == 'y':
-        create_tables(conn, curs)
-        inserting_to_currencies(conn, curs)
-    inserting_to_rates_for_curent_date(conn, curs)
-    all_currencies = output_currencies(curs)
+        create_tables()
+        inserting_to_currencies()
+    inserting_to_rates_for_curent_date()
+    all_currencies = output_currencies()
     for index, k in enumerate(all_currencies):
         print(f'{index+1}---{k[0]}')
     id_one_cur = int(input(
         'Введите номер валюты, которой хотите получить актуальный курс?(1, 2, 3...):  '))
-    unit, date, rate = find_rate_cur(curs, id_one_cur)
+    unit, date, rate = find_rate_cur(id_one_cur)
     print(
         f'За {unit} {all_currencies[id_one_cur-1][0]} на дату {date} курс составляет {rate} BYN')
-    curs.close()
-    conn.close()
+    connect.close()
 
 
 if __name__ == '__main__':
