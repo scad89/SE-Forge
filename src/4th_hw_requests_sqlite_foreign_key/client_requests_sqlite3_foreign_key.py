@@ -79,10 +79,10 @@ def output_currencies():
         return all_currencies
 
 
-def get_max_rate_into_data():
+def get_max_rate_into_data(curval):
     with connect_to_database() as cursor:
         cursor.execute(
-            'SELECT unit_cur, date, rate FROM rates WHERE ID = (SELECT MAX(ID) FROM rates)')
+            'SELECT unit_cur, date, rate FROM rates WHERE (id = ?)', (curval,))
         last_data_from_rates = cursor.fetchall()
         return last_data_from_rates[0][0], last_data_from_rates[0][1], last_data_from_rates[0][2]
 
@@ -92,15 +92,15 @@ def find_rate_cur(curval):
         cursor.execute(
             "SELECT unit_cur, date, rate FROM rates WHERE (date = ?) and (id = ?)", (str(datetime.now().date()), curval))
         data_from_rates = cursor.fetchall()
-        unit, date, rate = check_return_sql_request(data_from_rates)
+        unit, date, rate = check_return_sql_request(data_from_rates, curval)
         return unit, date, rate
 
 
-def check_return_sql_request(database_list):
+def check_return_sql_request(database_list, curval):
     if database_list:
         return database_list[0][0], database_list[0][1], database_list[0][2]
     else:
-        unit, date, rate = get_max_rate_into_data()
+        unit, date, rate = get_max_rate_into_data(curval)
         return unit, date, rate
 
 
