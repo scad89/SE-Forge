@@ -1,17 +1,11 @@
-from sqlalchemy import Table, Column, Integer, String, MetaData, create_engine, ForeignKey, Float, select
-from flask import Flask, render_template, url_for
+from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.sql.sqltypes import Integer
-from jinja2 import Template
 
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///currencies.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+app.config.from_pyfile('config.py')
 db = SQLAlchemy(app)
 db.create_all()
-db.session.commit()
 
 
 class Currencies(db.Model):
@@ -38,56 +32,18 @@ class Rates(db.Model):
 
 @app.route('/')
 @app.route('/home')
+@app.route('/index')
 def hello_world():
-    result = db.session.query(Currencies).all()
-    return render_template('index.html', currency_1th=result)
+    name = Currencies.query.all()
+    return render_template('index.html', name=name)
+
+
+@app.route('/rate/<int:id>')
+def rate(id):
+    rate = Rates.query.get(id)
+    name = Currencies.query.get(id)
+    return render_template('rate.html', unit=rate, name=name, date=rate, rate=rate)
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
-    db.create_all()
-
-
-engine = create_engine('sqlite:///currencies.db', echo=True)
-# connection = engine.connect()
-meta = MetaData()
-
-
-def output_all():
-    s = select([currencies.c.name, rates.c.unit_cur, rates.c.date,
-                rates.c.rate]).where(currencies.c.id == rates.c.id)
-    result = conn.execute(s)
-    return result.fetchall()
-
-
-currencies = Table(
-    'currencies', meta,
-    Column('id', Integer, primary_key=True),
-    Column('name', String),
-    Column('nbrb_id', Integer),
-)
-
-rates = Table(
-    'rates', meta,
-    Column('id', Integer, primary_key=True),
-    Column('unit_cur', Integer),
-    Column('date', String),
-    Column('rate', Float),
-    Column('currency_id', Integer, ForeignKey('currencies.id')))
-meta.create_all(engine)
-conn = engine.connect()
-
-#s = select([currencies, rates]).where(currencies.c.id == rates.c.id)
-# s = select([currencies.c.name, rates.c.unit_cur, rates.c.date,
-#             rates.c.rate]).where(currencies.c.id == rates.c.id)
-# result = conn.execute(s)
-# print(result.fetchall())
-
-print(output_all())
-
-
-"""
-вывод 
-(1, 'USD', 12, 1, 31, '2021-05-25', 2.56)
-(2, 'EUR', 13, 2, 32, '2021-05-25', 3.06)
-"""
+    app.run()
