@@ -34,21 +34,21 @@ class Rates(db.Model):
 @app.route('/')
 @app.route('/home')
 @app.route('/index')
-def hello_world():
-    try:
-        id_cur = db.session.query(Currencies.id).all()
-        return render_template('index.html', name=id_cur)
-    except NoResultFound:
-        return errors('Нет данных для выбранной валюты.')
-    except MultipleResultsFound:
-        return errors('Найдено несколько результатов.')
+def home():
+    id_cur = db.session.query(Currencies.id).all()
+    return render_template('index.html', name=id_cur)
 
 
 @app.route('/rate/<int:id_web>')
 def rate(id_web):
-    data_for_output = db.session.query(Currencies.id, Currencies.name, Rates.unit_cur, Rates.date, Rates.rate).join(
-        Rates).filter(Currencies.id == id_web).all()
-    return render_template('rate.html', output=data_for_output)
+    try:
+        data_for_output = db.session.query(Currencies.id, Currencies.name, Rates.unit_cur, Rates.date, Rates.rate).join(
+            Rates).filter(Currencies.id == id_web).first()
+        return render_template('rate.html', output=data_for_output)
+    except NoResultFound:
+        return errors('Нет данных для выбранной валюты.')
+    except MultipleResultsFound:
+        return errors('Найдено несколько результатов.')
 
 
 @app.route('/errors')
