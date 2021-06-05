@@ -43,7 +43,7 @@ def home():
 def rate(id_web):
     try:
         data_for_output = db.session.query(Currencies.id, Currencies.name, Rates.unit_cur, Rates.date, Rates.rate).join(
-            Rates).filter(Currencies.id == id_web).first()
+            Rates).filter(Currencies.id == id_web).one()
         return render_template('rate.html', output=data_for_output)
     except NoResultFound:
         return errors('Нет данных для выбранной валюты.')
