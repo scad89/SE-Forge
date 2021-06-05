@@ -1,4 +1,5 @@
-from flask import Flask, render_template
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from flask import Flask, render_template, session
 from flask_sqlalchemy import SQLAlchemy
 
 
@@ -34,15 +35,25 @@ class Rates(db.Model):
 @app.route('/home')
 @app.route('/index')
 def hello_world():
-    name = Currencies.query.all()
-    return render_template('index.html', name=name)
+    try:
+        id_cur = db.session.query(Currencies.id).all()
+        return render_template('index.html', name=id_cur)
+    except NoResultFound:
+        return errors('Нет данных для выбранной валюты.')
+    except MultipleResultsFound:
+        return errors('Найдено несколько результатов.')
 
 
-@app.route('/rate/<int:id>')
-def rate(id):
-    rate = Rates.query.get(id)
-    name = Currencies.query.get(id)
-    return render_template('rate.html', unit=rate, name=name, date=rate, rate=rate)
+@app.route('/rate/<int:id_web>')
+def rate(id_web):
+    data_for_output = db.session.query(Currencies.id, Currencies.name, Rates.unit_cur, Rates.date, Rates.rate).join(
+        Rates).filter(Currencies.id == id_web).all()
+    return render_template('rate.html', output=data_for_output)
+
+
+@app.route('/errors')
+def errors(string_errors):
+    return render_template('errors.html', type=string_errors)
 
 
 if __name__ == '__main__':
